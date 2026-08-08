@@ -9,6 +9,9 @@ Working on the stack? Read in this order:
    control actually works, §7 troubleshooting with refuted theories)
 3. `docs/ARM.md` — driver/SDK internals, gripper compliance tuning (§6b)
 4. `docs/HANDOFF.md` — most recent known state and unverified items
+5. `docs/ROS_MIGRATION.md` — the plan for moving the stack off ROS, with
+   the behavioral invariants any rewrite must preserve. Refine it before
+   executing; keep the ROS path alive until each phase is hardware-validated.
 
 House rules learned the hard way:
 - **Trust code over comments, and these docs over vendor docs.** Several
