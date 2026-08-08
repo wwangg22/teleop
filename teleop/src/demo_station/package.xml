@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>demo_station</name>
+  <version>0.1.0</version>
+  <description>Teleop demo collection: episode recorder (controller-squeeze toggled),
+    multi-camera bringup, and a web GUI for process management, live view and
+    browsing recorded demos.</description>
+  <maintainer email="whw2112@columbia.edu">willy</maintainer>
+  <license>MIT</license>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>quest2ros</exec_depend>
+  <exec_depend>rosbag2_transport</exec_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>

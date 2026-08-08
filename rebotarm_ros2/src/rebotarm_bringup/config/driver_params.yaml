@@ -1,0 +1,22 @@
+reBotArmController:
+  ros__parameters:
+    arm_namespace: rebotarm
+    joint_state_rate: 100.0
+    cmd_arbitration: reject
+    hardware_config: ""
+    model: ""
+    channel: ""
+    frame_id: base_link
+    ee_frame_id: end_link
+    # --- Thermal protection -------------------------------------------------
+    # On trip the arm ALWAYS drives to the zero pose (safe_home) and only then
+    # disables -- it is never dropped or left stopped mid-pose.
+    #
+    # WARNING: these limits are conservative placeholders, NOT datasheet values
+    # for RobStride rs-00/rs-06. Verify against the motor spec before trusting
+    # them. Set thermal_enabled:false to turn the guard off entirely.
+    thermal_enabled: true
+    thermal_warn_c: 60.0
+    thermal_critical_c: 75.0
+    thermal_poll_hz: 1.0
+    thermal_consecutive_to_trip: 3

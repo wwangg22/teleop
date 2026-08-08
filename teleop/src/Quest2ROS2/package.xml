@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+	<name>q2r2_bringup</name>
+	<version>1.0.0</version>
+	<description>A framework for using Meta Quest 2/3 VR controllers to teleoperate a robot system through ROS2 and ROS–TCP communication.</description>
+
+	<maintainer email="jialong.li@cs.lth.se">JialongLi</maintainer>
+	<license>Apache-2.0</license>
+
+	<depend>rclpy</depend>
+	<depend>std_msgs</depend>
+
+	<depend>visualization_msgs</depend>
+	<depend>geometry_msgs</depend>
+	<depend>tf2_ros</depend>
+	<depend>control_msgs</depend>
+
+	<!-- Used by QuestIKBridge (MoveIt /compute_ik -> JointTrajectory) -->
+	<depend>moveit_msgs</depend>
+	<depend>sensor_msgs</depend>
+	<depend>trajectory_msgs</depend>
+
+	<!-- Custom message dependency -->
+	<depend>quest2ros</depend>
+
+	<exec_depend>python3-numpy</exec_depend>
+	<exec_depend>tf_transformations</exec_depend>
+
+	<test_depend>ament_copyright</test_depend>
+	<test_depend>ament_flake8</test_depend>
+	<test_depend>ament_pep257</test_depend>
+	<test_depend>python3-pytest</test_depend>
+
+	<export>
+		<build_type>ament_python</build_type>
+	</export>
+</package>

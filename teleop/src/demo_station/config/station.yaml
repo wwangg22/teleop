@@ -1,0 +1,64 @@
+# Demo station configuration. Symlink-installed: edits here are live on the
+# next node/GUI restart, no rebuild.
+
+# Where episodes are written. On this Jetson everything lives on the one
+# 238 GB eMMC/SD (no NVMe) -- watch the disk gauge in the GUI.
+demos_root: /home/willy/teleop_demos
+
+# Which controller drives recording and teleop.
+side: right
+
+# Recording toggle: side squeeze (press_middle, analog 0..1) on the driving
+# controller. Crossing `trigger` toggles start/stop; must drop below `rearm`
+# before another toggle is possible; `min_gap_s` guards against double-fires
+# from one long squeeze.
+toggle:
+  trigger: 0.8
+  rearm: 0.3
+  min_gap_s: 1.0
+
+# Cameras. Each entry becomes one RealSense node namespaced /camera/<name>/
+# and its topics are matched by the record regex below automatically.
+# Add a camera = plug it in + add an entry here (serial from
+# `ros2 launch demo_station cameras.launch.py list:=true` or rs-enumerate).
+cameras:
+  - name: wrist
+    type: realsense
+    serial: "260522275150"   # D405
+    # width x height x fps, both depth and color. MEASURED 2026-08-08: this
+    # disk sustains 60 MB/s; recording UNCOMPRESSED RGB-D costs
+    #   848x480x30 ~ 61 MB/s -> saturated the disk, load 5+, swap thrash,
+    #                           multi-minute DDS backlog (16.7 GB / 5 min)
+    #   640x480x30 ~ 46 MB/s -> default; leaves headroom for one camera only
+    #   424x240x30 ~ 15 MB/s -> use this per-camera once a 2nd camera exists,
+    #                           or revisit compression
+    profile: 640x480x30
+
+# Everything recorded into each episode bag. Raw, uncompressed, no
+# resampling -- alignment happens offline from header stamps.
+record:
+  topics:
+    # robot state (observations)
+    - /rebotarm/joint_states
+    - /rebotarm/gripper/state
+    - /rebotarm/arm_status
+    - /rebotarm/thermal_status
+    # commanded actions
+    - /rebotarm/policy/action_chunk
+    - /quest_teleop_real/gripper_cmd
+    # operator raw streams (re-derive/remap teleop offline)
+    - /q2r_right_hand_pose
+    - /q2r_right_hand_twist
+    - /q2r_right_hand_inputs
+    - /q2r_left_hand_pose
+    - /q2r_left_hand_twist
+    - /q2r_left_hand_inputs
+    # kinematics / frames
+    - /tf
+    - /tf_static
+    - /robot_description
+    # health, for post-hoc quality screening (never auto-discard)
+    - /quest_teleop_real/diagnostics
+  # one python regex, OR'd with the list above; catches every camera and the
+  # per-joint motor states without listing them
+  regex: "/camera/.*|/rebotarm/joints/.*"

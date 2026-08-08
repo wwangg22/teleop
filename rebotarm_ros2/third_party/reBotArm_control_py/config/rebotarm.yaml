@@ -1,0 +1,27 @@
+# reBotArm 全局配置
+# 硬件配置（电机类型、通信参数、PID 等）
+
+# reBotArm global config
+# Hardware config (motor type, comm params, PID, etc.)
+
+# THIS MACHINE HAS THE RS ARM.
+#
+# This field is not cosmetic and `model:=rs` does NOT override it.
+# RebotArmEndPose.__init__ calls load_robot_model() with no argument, so the
+# kinematics module resolves urdf_path and end_effector_frame from HERE, via
+# robot_model._hw_config(). The ROS layer's model selection never reaches it.
+#
+# Left at rebotarm_dm.yaml while running RS, the 500 Hz MIT loop's gravity
+# feedforward is computed on the DM model, and DM/RS differ in the worst
+# possible way for exactly the two joints that carry the gravity load:
+#     joint2 axis  0 0 -1 (DM)  vs  0 0 1 (RS)
+#     joint3 axis  0 0  1 (DM)  vs  0 0 -1 (RS)
+#     total mass   4.879 kg     vs  6.317 kg
+# so tau_ff comes out SIGN-INVERTED on joint2/joint3 and is then multiplied by
+# 1.55 in _loop_cb. The feedforward pushes WITH gravity instead of against it,
+# leaving kp to fight both. Symptoms: ~0.25 rad of droop, violent jitter, hot
+# motors, the arm never quite reaching a commanded pose, and slow drift.
+#
+# Set this to match the arm that is plugged in. Verify at runtime with the
+# "SDK kinematics model" line the driver logs on startup.
+hardware_yaml: "rebotarm_rs.yaml"

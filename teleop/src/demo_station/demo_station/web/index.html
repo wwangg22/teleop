@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>demo station</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#14161a; --panel:#1d2026; --line:#2c313a; --fg:#d7dae0; --dim:#8a919e;
+    --green:#4caf78; --red:#e05252; --amber:#e0a542; --blue:#5b8dd9;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:14px/1.45 system-ui, sans-serif; }
+  body.rec { outline:6px solid var(--red); outline-offset:-6px; }
+  header { display:flex; align-items:center; gap:16px; padding:10px 18px;
+           background:var(--panel); border-bottom:1px solid var(--line);
+           position:sticky; top:0; z-index:10; }
+  header h1 { font-size:16px; margin:0 12px 0 0; }
+  .tabs button { background:none; border:none; color:var(--dim); font:inherit;
+                 padding:6px 10px; cursor:pointer; border-radius:6px; }
+  .tabs button.on { color:var(--fg); background:var(--line); }
+  #recbadge { margin-left:auto; padding:6px 14px; border-radius:6px;
+              font-weight:700; letter-spacing:.06em; background:var(--line);
+              color:var(--dim); }
+  #recbadge.rec { background:var(--red); color:#fff;
+                  animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.65; } }
+  #diskbadge, #loadbadge { color:var(--dim); font-size:12px; }
+  main { padding:16px 18px 60px; max-width:1400px; margin:0 auto; }
+  .cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(380px,1fr));
+           gap:12px; }
+  .card { background:var(--panel); border:1px solid var(--line);
+          border-radius:10px; padding:12px 14px; }
+  .card h3 { margin:0 0 4px; font-size:14px; display:flex; align-items:center; gap:8px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:var(--dim);
+         display:inline-block; flex:none; }
+  .dot.up { background:var(--green); } .dot.bad { background:var(--red); }
+  .note { color:var(--dim); font-size:12px; margin:2px 0 8px; }
+  .warn { color:var(--amber); }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  button.act { background:var(--line); color:var(--fg); border:1px solid #3a4150;
+               border-radius:6px; padding:5px 12px; cursor:pointer; font:inherit; }
+  button.act:hover { background:#343b47; }
+  button.act.danger { border-color:var(--red); color:var(--red); }
+  button.act.primary { border-color:var(--green); color:var(--green); }
+  .health { margin-top:8px; font-size:12px; color:var(--dim); }
+  .health b { font-weight:600; }
+  .hz-ok { color:var(--green); } .hz-bad { color:var(--red); }
+  pre.log { background:#0e1013; border:1px solid var(--line); border-radius:6px;
+            padding:8px; font-size:11px; max-height:260px; overflow:auto;
+            white-space:pre-wrap; }
+  input.stdin { background:#0e1013; border:1px solid var(--line); color:var(--fg);
+                border-radius:6px; padding:5px 8px; font:inherit; width:110px; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fill,minmax(420px,1fr));
+           gap:12px; }
+  .tile img { width:100%; border-radius:8px; background:#000; min-height:200px; }
+  .tile .cap { font-size:12px; color:var(--dim); margin:4px 2px; }
+  #recpanel { display:flex; gap:24px; align-items:center; padding:14px;
+              margin-bottom:14px; border-radius:10px; background:var(--panel);
+              border:1px solid var(--line); font-size:15px; }
+  #recpanel.rec { border-color:var(--red); background:#2a1a1a; }
+  #recpanel .big { font-size:22px; font-weight:700; }
+  table { border-collapse:collapse; width:100%; }
+  th, td { text-align:left; padding:7px 10px; border-bottom:1px solid var(--line);
+           font-size:13px; }
+  th { color:var(--dim); font-weight:600; }
+  tr.ep:hover { background:var(--line); cursor:pointer; }
+  #epdetail { margin-top:14px; }
+  canvas { background:#0e1013; border:1px solid var(--line); border-radius:8px;
+           width:100%; }
+  .hidden { display:none; }
+  select { background:#0e1013; color:var(--fg); border:1px solid var(--line);
+           border-radius:6px; padding:4px 8px; font:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <h1>demo station</h1>
+  <nav class="tabs">
+    <button data-tab="proc" class="on">Processes</button>
+    <button data-tab="live">Live</button>
+    <button data-tab="demos">Demos</button>
+  </nav>
+  <span id="diskbadge"></span>
+  <span id="loadbadge"></span>
+  <span id="recbadge">IDLE</span>
+</header>
+<main>
+  <section id="tab-proc" class="cards"></section>
+
+  <section id="tab-live" class="hidden">
+    <div id="recpanel"></div>
+    <div class="tiles" id="tiles"></div>
+  </section>
+
+  <section id="tab-demos" class="hidden">
+    <div class="row" style="margin-bottom:10px">
+      <button class="act" onclick="loadEpisodes()">Refresh</button>
+      <span id="epcount" class="note"></span>
+    </div>
+    <table id="eptable">
+      <thead><tr><th>Episode</th><th>Started</th><th>Duration</th><th>Size</th>
+      <th>Msgs</th><th>Stop reason</th><th>Close</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div id="epdetail"></div>
+  </section>
+</main>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+let status = {units:[], recorder:{}, cameras:[]};
+let openLogs = new Set();
+
+/* ---------------- tabs ---------------- */
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  ["proc","live","demos"].forEach(t =>
+    $("#tab-"+t).classList.toggle("hidden", t !== b.dataset.tab));
+  if (b.dataset.tab === "demos") loadEpisodes();
+  if (b.dataset.tab === "live") renderTiles();
+});
+
+/* ---------------- status poll ---------------- */
+async function poll() {
+  try {
+    status = await (await fetch("/api/status")).json();
+    render();
+  } catch (e) { /* server briefly away */ }
+  setTimeout(poll, 1000);
+}
+
+function fmtBytes(b) {
+  if (b == null) return "—";
+  if (b > 1e9) return (b/1e9).toFixed(2)+" GB";
+  if (b > 1e6) return (b/1e6).toFixed(1)+" MB";
+  return Math.round(b/1e3)+" kB";
+}
+
+function render() {
+  const rec = status.recorder || {};
+  const recording = rec.state === "recording";
+  document.body.classList.toggle("rec", recording);
+  const badge = $("#recbadge");
+  badge.className = recording ? "rec" : "";
+  badge.textContent = recording
+    ? `● REC ${rec.elapsed_s ?? 0}s  ${fmtBytes(rec.bytes)}`
+    : (rec.state ? "IDLE" : "RECORDER OFF");
+  $("#diskbadge").textContent = status.disk?.free_gb != null
+    ? `disk ${status.disk.free_gb} GB free` : "";
+  $("#loadbadge").textContent = status.load != null
+    ? `load ${status.load.toFixed(1)}` : "";
+  renderUnits();
+  renderRecPanel();
+}
+
+/* ---------------- processes ---------------- */
+function renderUnits() {
+  const host = $("#tab-proc");
+  for (const u of status.units) {
+    let card = document.getElementById("unit-" + u.name);
+    if (!card) {
+      card = document.createElement("div");
+      card.className = "card"; card.id = "unit-" + u.name;
+      host.appendChild(card);
+    }
+    const health = (u.health || []).map(h => {
+      const ok = h.hz != null && h.hz >= h.min_hz;
+      return `<div><b>${h.topic}</b> <span class="${ok?'hz-ok':'hz-bad'}">` +
+             `${h.hz == null ? "—" : h.hz + " Hz"}</span></div>`;
+    }).join("");
+    const isCheck = u.type === "check";
+    card.innerHTML = `
+      <h3><span class="dot ${u.running ? "up" : (u.last_exit ? "bad" : "")}"></span>
+        ${u.label}
+        <span class="note" style="margin-left:auto">
+          ${u.running ? "pid " + u.pid +
+              (u.external ? " · adopted" :
+               (u.uptime_s != null ? " · " + Math.round(u.uptime_s/60) + "m" : ""))
+                      : (u.last_exit != null ? "exit " + u.last_exit : "")}</span></h3>
+      ${u.note ? `<div class="note ${u.confirm ? "warn" : ""}">${u.note}</div>` : ""}
+      <div class="row">
+        ${isCheck
+          ? `<button class="act" onclick="runCheck('${u.name}')">Run check</button>`
+          : u.running
+            ? `<button class="act danger" onclick="stopUnit('${u.name}')">Stop</button>`
+            : `<button class="act primary" onclick="startUnit('${u.name}', ${u.confirm})">Start</button>`}
+        ${u.stdin && u.running
+          ? `<input class="stdin" id="in-${u.name}" placeholder="ARM">
+             <button class="act" onclick="sendStdin('${u.name}')">Send</button>` : ""}
+        <button class="act" onclick="toggleLog('${u.name}')">Log</button>
+      </div>
+      ${health ? `<div class="health">${health}</div>` : ""}
+      <div id="chk-${u.name}"></div>
+      <pre class="log hidden" id="log-${u.name}"></pre>`;
+  }
+  openLogs.forEach(refreshLog);
+}
+async function startUnit(name, confirm_) {
+  if (confirm_ && !confirm("This ENERGIZES THE MOTORS.\nArm holds pose immediately. Start driver?"))
+    return;
+  const r = await (await fetch(`/api/units/${name}/start`, {method:"POST"})).json();
+  if (!r.ok && r.message) alert(r.message);
+}
+async function stopUnit(name) {
+  await fetch(`/api/units/${name}/stop`, {method:"POST"});
+}
+async function sendStdin(name) {
+  const v = document.getElementById("in-" + name).value || "ARM";
+  await fetch(`/api/units/${name}/stdin`,
+    {method:"POST", headers:{"Content-Type":"application/json"},
+     body: JSON.stringify({text: v})});
+}
+async function runCheck(name) {
+  const r = await (await fetch(`/api/units/${name}/start`, {method:"POST"})).json();
+  document.getElementById("chk-" + name).innerHTML =
+    `<pre class="log">${r.output || ""}</pre>`;
+}
+function toggleLog(name) {
+  const el = document.getElementById("log-" + name);
+  el.classList.toggle("hidden");
+  if (el.classList.contains("hidden")) openLogs.delete(name);
+  else { openLogs.add(name); refreshLog(name); }
+}
+async function refreshLog(name) {
+  const el = document.getElementById("log-" + name);
+  if (!el || el.classList.contains("hidden")) return;
+  el.textContent = await (await fetch(`/api/units/${name}/log`)).text();
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ---------------- live ---------------- */
+function renderTiles() {
+  const host = $("#tiles");
+  if (host.childElementCount) return;
+  for (const cam of status.cameras || []) {
+    for (const kind of ["color", "depth"]) {
+      const d = document.createElement("div");
+      d.className = "tile";
+      d.innerHTML = `<img src="/stream/${cam}/${kind}">
+                     <div class="cap">${cam} / ${kind}</div>`;
+      host.appendChild(d);
+    }
+  }
+}
+function renderRecPanel() {
+  const rec = status.recorder || {};
+  const tel = status.teleop || {};
+  const recording = rec.state === "recording";
+  const p = $("#recpanel");
+  p.className = recording ? "rec" : "";
+  p.innerHTML = `
+    <span class="big">${recording ? "● RECORDING" : (rec.state ? "idle" : "recorder off")}</span>
+    ${recording ? `<span>${rec.episode}</span>
+                   <span>${rec.elapsed_s}s · ${fmtBytes(rec.bytes)}
+                   · ${fmtBytes(rec.bytes_per_s)}/s</span>` : ""}
+    ${rec.last_episode && !recording ? `<span class="note">last: ${rec.last_episode}</span>` : ""}
+    <span style="margin-left:auto" class="note">
+      ${tel.engaged != null ? "teleop " + (tel.engaged ? "ENGAGED" : "idle") : ""}
+      ${tel.lag != null ? " · lag " + tel.lag : ""}</span>
+    ${rec.state
+      ? (recording
+        ? `<button class="act danger" onclick="recCtl('stop')">Stop (or squeeze)</button>`
+        : `<button class="act primary" onclick="recCtl('start')">Record (or squeeze)</button>`)
+      : ""}`;
+}
+async function recCtl(a) {
+  const r = await (await fetch("/api/recorder/" + a, {method:"POST"})).json();
+  if (!r.success && r.message) alert(r.message);
+}
+
+/* ---------------- demos ---------------- */
+let episodes = [];
+async function loadEpisodes() {
+  episodes = await (await fetch("/api/episodes")).json();
+  $("#epcount").textContent = episodes.length + " episodes";
+  const tb = $("#eptable tbody");
+  tb.innerHTML = episodes.map((e, i) => `
+    <tr class="ep" onclick="showEp(${i})">
+      <td>${e.id}</td><td>${e.started_at ?? "—"}</td>
+      <td>${e.duration_s != null ? e.duration_s + "s" : "—"}</td>
+      <td>${fmtBytes(e.bytes)}</td>
+      <td>${e.messages ?? "—"}</td>
+      <td>${e.stop_reason ?? "—"}</td>
+      <td>${e.clean_close ? "clean" : "⚠ unclean"}</td>
+    </tr>`).join("");
+}
+async function showEp(i) {
+  const e = episodes[i];
+  const [date, name] = e.id.split("/");
+  const cams = e.image_topics || [];
+  $("#epdetail").innerHTML = `
+    <div class="card">
+      <h3>${e.id}</h3>
+      <div class="row">
+        ${cams.length ? `<select id="eptopic">${cams.map(t =>
+            `<option value="${t}">${t}</option>`).join("")}</select>
+          <button class="act" onclick="playEp('${date}','${name}')">Play</button>`
+          : `<span class="note">no image topics in this bag</span>`}
+      </div>
+      <div class="tiles" style="margin-top:10px">
+        <div class="tile"><img id="epvideo"></div>
+        <div><canvas id="epjoints" width="640" height="300"></canvas>
+             <div class="cap" id="epjnames"></div></div>
+      </div>
+    </div>`;
+  drawJoints(date, name);
+}
+function playEp(date, name) {
+  const topic = $("#eptopic").value;
+  $("#epvideo").src = `/playback/${date}/${name}?topic=${encodeURIComponent(topic)}&t=${Date.now()}`;
+}
+async function drawJoints(date, name) {
+  const d = await (await fetch(`/api/episodes/${date}/${name}/joints`)).json();
+  const cv = $("#epjoints"), ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  if (!d.t || !d.t.length) return;
+  const colors = ["#5b8dd9","#4caf78","#e0a542","#e05252","#9b6dd9","#4cbfbf","#d9d9d9"];
+  const all = d.q.flat(), lo = Math.min(...all), hi = Math.max(...all);
+  const X = t => 40 + (t / d.t[d.t.length-1]) * (cv.width - 50);
+  const Y = v => cv.height - 20 - ((v - lo) / (hi - lo || 1)) * (cv.height - 35);
+  ctx.strokeStyle = "#2c313a";
+  ctx.strokeRect(40, 10, cv.width - 50, cv.height - 30);
+  const nj = d.q[0].length;
+  for (let j = 0; j < nj; j++) {
+    ctx.strokeStyle = colors[j % colors.length];
+    ctx.beginPath();
+    d.t.forEach((t, k) => k ? ctx.lineTo(X(t), Y(d.q[k][j]))
+                             : ctx.moveTo(X(t), Y(d.q[k][j])));
+    ctx.stroke();
+  }
+  $("#epjnames").innerHTML = (d.names || []).map((n, j) =>
+    `<span style="color:${colors[j % colors.length]}">■ ${n}</span>`).join(" ");
+}
+
+poll();
+setInterval(() => openLogs.forEach(refreshLog), 3000);
+</script>
+</body>
+</html>

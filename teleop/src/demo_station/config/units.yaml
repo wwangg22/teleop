@@ -1,0 +1,68 @@
+# Process units the GUI can start/stop. Order here = display order = the
+# sane startup order. Commands run under bash with ROS + both workspaces
+# sourced (see procman.py). Logs land in ~/.demo_station/logs/<name>.log.
+#
+# Fields:
+#   label        display name
+#   cmd          command to exec (omit for type: check)
+#   type         "process" (default) or "check" (one-shot, shows output)
+#   confirm      GUI requires an explicit confirmation dialog before start
+#   stdin        keep a stdin pipe open; GUI shows a "send input" box
+#   singleton    pgrep pattern that must NOT match before starting
+#   health       [{topic, min_hz}] -- measured live, green when >= min_hz
+#   note         one-line warning/hint shown on the card
+
+units:
+  - name: can
+    label: "CAN bus (can1)"
+    type: check
+    cmd: "ip -br link show can1"
+    expect: "UP"
+    note: "If DOWN, run in a terminal:  sudo ip link set can1 up type can bitrate 1000000"
+
+  - name: driver
+    label: "Arm driver"
+    cmd: "ros2 launch rebotarm_bringup driver.launch.py model:=rs channel:=can1"
+    confirm: true
+    # match the node BINARY path, not the bare name -- a `ros2 param dump
+    # /reBotArmController` (recorder param snapshot) must not trip this
+    singleton: "lib/rebotarmcontroller/reBotArmController"
+    note: "ENERGIZES THE MOTORS immediately. Never run two instances."
+    health:
+      - { topic: /rebotarm/joint_states, min_hz: 50 }
+
+  - name: moveit
+    label: "MoveIt (IK guard)"
+    cmd: "ros2 launch rebotarm_moveit_config hardware.launch.py model:=rs"
+    health: []
+
+  - name: quest
+    label: "Quest link (TCP endpoint)"
+    cmd: "ros2 launch ros_tcp_endpoint endpoint.py"
+    note: "Headset app: set the Jetson IP, port 10000, Apply. Align frame with A+B before driving."
+    health:
+      - { topic: /q2r_right_hand_pose, min_hz: 20 }
+
+  - name: cameras
+    label: "Cameras"
+    cmd: "ros2 launch demo_station cameras.launch.py"
+    health: []   # per-camera health rows are added automatically from station.yaml
+
+  - name: teleop
+    label: "Teleop (REAL hardware)"
+    cmd: "ros2 run q2r2_bringup QuestTeleopReal"
+    stdin: true
+    note: "Waits for the word ARM on stdin after preflight -- use the input box on this card."
+    health: []
+
+  - name: teleop_dry
+    label: "Teleop (dry run)"
+    cmd: "ros2 run q2r2_bringup QuestTeleopReal --ros-args -p dry_run:=true"
+    note: "No hardware writes. RViz ghost follows the controller. Don't run the driver at the same time."
+    health: []
+
+  - name: recorder
+    label: "Demo recorder"
+    cmd: "ros2 run demo_station demo_recorder"
+    note: "Side-squeeze the controller to start/stop an episode."
+    health: []
