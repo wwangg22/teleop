@@ -32,6 +32,17 @@ bugs they fix.
 
 # Fresh-machine setup (Ubuntu 22.04 desktop)
 
+> **Ubuntu 24.04 instead?** ROS 2 Humble — what this stack and the robot
+> host run — has NO packages for 24.04. Decide by the machine's job:
+> - **Training / bag processing only** (no live ROS to the robot): 24.04 is
+>   fine. Do step 1 (NVIDIA), skip steps 2–7, `pip install mcap
+>   mcap-ros2-support` to read episode bags from plain Python.
+> - **Live ROS peer of the robot** (GUI, teleop dev against the arm): run
+>   steps 2–7 inside a 22.04 container (`docker run --net=host -it
+>   ubuntu:22.04` or distrobox; `--net=host` is required for DDS multicast),
+>   or install 22.04 bare-metal. Do NOT port to Jazzy: Humble↔Jazzy
+>   cross-machine ROS is not guaranteed and nothing here is tested on it.
+
 Instructions written for a Claude agent doing the setup. Steps are ordered;
 don't skip the verifies. Machine roles: the **robot host** needs the CAN
 adapter + cameras physically attached (currently the Jetson). A desktop
