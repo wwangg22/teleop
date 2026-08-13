@@ -40,10 +40,19 @@ class NullServer(PolicyServer):
         super().__init__(socket_path)
         self.chunk, self.action_dim = int(chunk), int(action_dim)
         self.scale, self.dt = float(scale), float(dt)
+        self._anchor: np.ndarray | None = None
 
     def hold_action(self, proprio: np.ndarray) -> np.ndarray:
+        # Anchor the hold to the FIRST pose seen, not the current one: an
+        # echo-of-current hold re-anchors to the sagged pose every replan and
+        # gravity ratchets the arm downward (measured on hardware, G0.5
+        # 2026-08-12: joint3 0.33 -> 1.51 rad over 20 s at the extended
+        # start pose). A fixed anchor makes the PD+FF fight for the original
+        # pose instead of chasing the sag.
+        if self._anchor is None:
+            self._anchor = np.asarray(proprio[:6], np.float32).copy()
         a = np.zeros(self.action_dim, dtype=np.float32)
-        a[:6] = np.asarray(proprio[:6], np.float32) / self.scale
+        a[:6] = self._anchor / self.scale
         if self.action_dim > 6:
             a[6] = 1.0
         return a

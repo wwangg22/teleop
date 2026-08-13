@@ -81,6 +81,10 @@ def _replay(rt: Runtime, manifest, npz_path: str, time_scale: float) -> None:
 
     q_prev = first_rig
     gripper_closed = False
+    # previous session's safe_home parks the gripper CLOSED; demos start OPEN
+    # (G1 2026-08-12: the demo's CLOSE event was a visual no-op)
+    if rt.hw is not None:
+        rt.hw.set_gripper_position(float(rt.hw.gripper_open_position), timeout=4.0)
     last_seg = None
     for i, a in enumerate(actions):
         t0 = time.monotonic()

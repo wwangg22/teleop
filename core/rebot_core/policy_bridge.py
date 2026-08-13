@@ -124,6 +124,9 @@ class PolicyBridge:
         # velocity finite-difference ring: (t_mono, q_rig(6,), motor_pos)
         self._fd_ring: deque = deque(maxlen=8)
 
+        # low-pass state for target_lowpass_hz (None until first filtered tick)
+        self._q_filt: np.ndarray | None = None
+
         self._halt = threading.Event()
         self._thread: threading.Thread | None = None
         self._orig_attachments = None
@@ -151,6 +154,14 @@ class PolicyBridge:
             self.teleop.stop()          # holds, then deactivates "teleop"
         if not self.streamer.activate(STREAM_SOURCE):
             raise RuntimeError("could not acquire the setpoint stream")
+
+        # Demos start with the gripper OPEN, but the previous session's
+        # safe_home parks it CLOSED (grasp-aware close) — open it before the
+        # episode or the policy's initial state is wrong and its first CLOSE
+        # event is a visual no-op (seen on hardware, G1 2026-08-12).
+        if self.hw is not None and not self._gripper_closed:
+            self.hw.set_gripper_position(
+                float(self.hw.gripper_open_position), timeout=4.0)
 
         st = self._fresh_state(timeout=3.0)
         q0 = st.q.copy()
@@ -244,8 +255,15 @@ class PolicyBridge:
             self._halt.set()
             self.stopped_reason = f"inference: {exc}"
             return
+        # Absolute-deadline scheduling, unlike the stack's sleep-the-remainder
+        # convention: this loop's wakeups land ~5 ms late every tick (GIL
+        # pressure from the in-process JPEG encoders), and remainder-sleeping
+        # turns that constant overshoot into a 40 Hz loop that time-dilates
+        # the policy 1.26x (measured on the first rollout). Deadlines absorb
+        # the overshoot; if we fall more than one period behind, re-anchor
+        # instead of bursting to catch up.
+        deadline = time.monotonic() + period
         while not self._halt.is_set():
-            t0 = time.monotonic()
             try:
                 self._tick()
             except Exception as exc:
@@ -253,9 +271,15 @@ class PolicyBridge:
                 self.stopped_reason = f"tick: {exc}"
                 self._halt.set()
                 break
-            dt = time.monotonic() - t0
-            if dt < period:
-                time.sleep(period - dt)
+            now = time.monotonic()
+            if deadline - now > 0:
+                time.sleep(deadline - now)
+                deadline += period
+            elif now - deadline > period:
+                self.counters["overruns"] = self.counters.get("overruns", 0) + 1
+                deadline = now + period
+            else:
+                deadline += period
         # loop exited inside the thread (error/thermal): leave the arm held
         if self.stopped_reason not in (None, "stop", "detach"):
             if self._q_prev_rig is not None:
@@ -280,6 +304,18 @@ class PolicyBridge:
 
         if self._maybe_gripper_event(a, grip):
             return                       # froze this tick; arm holds
+
+        # one-pole low-pass on the decoded target (manifest opt-in): raw
+        # policy actions carry high-frequency noise that sim PD physics
+        # filtered implicitly but the MIT loop executes faithfully (first
+        # rollout: 37% per-step direction flips on joint 4 -> visible buzz)
+        if self.m.target_lowpass_hz > 0.0:
+            alpha = self.m.tick_dt / (
+                self.m.tick_dt + 1.0 / (2.0 * np.pi * self.m.target_lowpass_hz))
+            if self._q_filt is None:
+                self._q_filt = self._q_prev_rig.copy()
+            self._q_filt = self._q_filt + alpha * (q_rig - self._q_filt)
+            q_rig = self._q_filt.copy()
 
         # bridge-side velocity clamp (the manifest ceiling; the streamer's
         # 2.0 rad/s clamp stays as the independent second line)

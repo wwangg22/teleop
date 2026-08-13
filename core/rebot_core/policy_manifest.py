@@ -91,6 +91,13 @@ class PolicyManifest:
     start_pose: np.ndarray          # (6,) policy frame
     thermal_watch: bool
     settle_s: float
+    # one-pole low-pass cutoff on decoded joint targets, Hz; 0 = off.
+    # Rationale (first rollout, 2026-08-12): raw policy actions carry
+    # high-frequency noise (37% per-step direction flips on joint 4) that
+    # sim PD physics filtered implicitly but the MIT loop executes
+    # faithfully -> visible buzz. ~5 Hz reproduces the sim-like smoothing
+    # with ~30 ms lag, negligible vs the 300 ms replan horizon.
+    target_lowpass_hz: float = 0.0
     checkpoint: str = ""
     ckpt_sha256: str = ""
     server: dict = field(default_factory=dict)
@@ -202,6 +209,11 @@ def load_manifest(path: str | Path) -> PolicyManifest:
             "decision, not a manifest one"
         )
 
+    lp_hz = float(sf.get("target_lowpass_hz", 0.0))
+    if not (0.0 <= lp_hz <= control_hz / 2.0):
+        _fail(f"safety.target_lowpass_hz {lp_hz} outside "
+              f"[0, control_hz/2 = {control_hz / 2.0}]")
+
     start = sf.get("start_pose", "default_pose")
     start_pose = default_pose.copy() if start == "default_pose" else np.asarray(
         start, dtype=float
@@ -236,6 +248,7 @@ def load_manifest(path: str | Path) -> PolicyManifest:
         start_pose=start_pose,
         thermal_watch=bool(sf.get("thermal_watch", False)),
         settle_s=float(sf.get("settle_s", 1.0)),
+        target_lowpass_hz=lp_hz,
         checkpoint=str(raw.get("checkpoint", "")),
         ckpt_sha256=str(raw.get("ckpt_sha256", "")),
         server=dict(raw.get("server") or {}),

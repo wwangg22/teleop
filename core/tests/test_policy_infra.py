@@ -360,15 +360,18 @@ def test_gripper_fsm(tmp: Path):
     bridge, streamer, m = _mk_bridge(tmp, hw, srv)
     bridge.attach(min_ramp_s=0.3)
     bridge.start_loop()
+    # attach() itself opens the gripper once at episode start (the previous
+    # session's safe_home parks it closed), so the FSM's open event is the
+    # SECOND open call.
     deadline = time.monotonic() + 6.0
-    while time.monotonic() < deadline and hw.open_calls < 1:
+    while time.monotonic() < deadline and hw.open_calls < 2:
         time.sleep(0.05)
     bridge.stop("test_done")
     streamer.stop()
 
     c = bridge.counters
     check("gripper: close then open happened",
-          hw.close_calls == 1 and hw.open_calls >= 1,
+          hw.close_calls == 1 and hw.open_calls >= 2,
           f"close={hw.close_calls} open={hw.open_calls}")
     check("gripper: events counted", c["gripper_events"] >= 2, str(c))
     check("gripper: clock froze during grasp", c["freeze_ticks"] >= 8, str(c))
