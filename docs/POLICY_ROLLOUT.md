@@ -114,7 +114,7 @@ conda run -n teleop python -m rebot_core.policy_runtime \
 | G0.5 | ML-free hardware checkout | `python -m rebot_core.policy_servers --mode sine --amplitude 0.05` + policy_runtime with the same manifest | needs a human at the rig |
 | G1 | sim-episode replay | `policy_runtime --replay <ep>/arrays.npz --time-scale 0.25 --arm`, then 0.5x/1x; PASS = motion matches the sim video, no vel_clamps/gate trips, grasp lands | needs a human |
 | G2 | shadow mode | serve the ckpt, log predicted vs demo actions on REAL observations (arm holding) | needs a human |
-| G3 | camera match | overlay real frames vs sim renders; iterate mounts (wrist hand-eye is UNCALIBRATED) | needs a human |
+| G3 | camera match | `core/tools/camera_overlay.py --sim <anchor _rgb.png>` (live blend/edges/flicker through the policy pixel path; stop the runtime first — it owns the cameras); iterate mounts (wrist hand-eye is UNCALIBRATED) | needs a human |
 | G4 | tethered rollout | manifest `max_joint_velocity: 1.0`, hand on power switch, <=5 episodes, recording on | needs a human |
 | G5 | nominal rollouts | raise the ceiling only after G4 is clean; N>=20 episodes, MCAP everything | needs a human |
 
